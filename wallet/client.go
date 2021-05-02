@@ -28,7 +28,7 @@ func NewWalletClient() (ClientWithResponsesInterface, error) {
 	if skipVerifyStr := os.Getenv(EnvTLSSkipVerify); skipVerifyStr != "" {
 		skipVerify, err := strconv.ParseBool(skipVerifyStr)
 		if err != nil {
-			log.Warnf("Failed to parse env-var %v=%v as bool: %v. Assuming false.",
+			Log.Warnf("Failed to parse env-var %v=%v as bool: %v. Assuming false.",
 				EnvTLSSkipVerify, skipVerifyStr, err)
 		} else {
 			tlsConfig.InsecureSkipVerify = skipVerify

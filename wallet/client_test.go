@@ -40,14 +40,14 @@ func (s *testSuiteBase) matches(valueName string, value string, regexStr string)
 func (s *testSuiteBase) logObject(name string, obj interface{}) {
 	marshalled, err := json.MarshalIndent(obj, "", "    ")
 	if err != nil {
-		log.Errorf("Failed to JSON-marshal response object: %v", err)
+		Log.Errorf("Failed to JSON-marshal response object: %v", err)
 		return
 	}
 	scanner := bufio.NewScanner(bytes.NewReader(marshalled))
 	scanner.Split(bufio.ScanLines)
-	log.Infof("%v:", name)
+	Log.Infof("%v:", name)
 	for scanner.Scan() {
-		log.Info(scanner.Text())
+		Log.Info(scanner.Text())
 	}
 }
 
@@ -251,7 +251,7 @@ func (s *CardanoWalletTestSuite) TestListByronWallets() {
 
 	wallets := *resp.JSON200
 	if len(wallets) == 0 {
-		log.Warnf("Cannot test ByronWallet requests: no Byron wallets available")
+		Log.Warnf("Cannot test ByronWallet requests: no Byron wallets available")
 		return
 	}
 
@@ -297,7 +297,7 @@ func (s *ByronWalletTestSuite) TestListByronAddresses() {
 
 	addresses := *resp.JSON200
 	if len(addresses) == 0 {
-		log.Warnf("Cannot test Byron Address requests: no addresses available")
+		Log.Warnf("Cannot test Byron Address requests: no addresses available")
 		return
 	}
 	addressId := addresses[0].Id
@@ -321,7 +321,7 @@ func (s *ByronWalletTestSuite) TestByronListAssets() {
 
 	assets := *resp.JSON200
 	if len(assets) == 0 {
-		log.Warnf("Cannot test ByronAsset requests: no assets available")
+		Log.Warnf("Cannot test ByronAsset requests: no assets available")
 		return
 	}
 	policyId := assets[0].PolicyId
@@ -379,7 +379,7 @@ func (s *ByronWalletTestSuite) TestByronListTransactions() {
 
 	transactions := *resp.JSON200
 	if len(transactions) == 0 {
-		log.Warnf("Cannot test ByronTransaction requests: no transactions available")
+		Log.Warnf("Cannot test ByronTransaction requests: no transactions available")
 		return
 	}
 	transactionId := transactions[0].Id
@@ -404,7 +404,7 @@ func (s *CardanoWalletTestSuite) TestListWallets() {
 
 	wallets := *resp.JSON200
 	if len(wallets) == 0 {
-		log.Warnf("Cannot test Wallet requests: no wallets available")
+		Log.Warnf("Cannot test Wallet requests: no wallets available")
 		return
 	}
 
@@ -450,7 +450,7 @@ func (s *SingleWalletTestSuite) TestListAddresses() {
 
 	addresses := *resp.JSON200
 	if len(addresses) == 0 {
-		log.Warnf("Cannot test Address requests: no addresses available")
+		Log.Warnf("Cannot test Address requests: no addresses available")
 		return
 	}
 	addressId := addresses[0].Id
@@ -485,7 +485,7 @@ func (s *SingleWalletTestSuite) TestListAssets() {
 
 	assets := *resp.JSON200
 	if len(assets) == 0 {
-		log.Warnf("Cannot test Asset requests: no assets available")
+		Log.Warnf("Cannot test Asset requests: no assets available")
 		return
 	}
 	policyId := assets[0].PolicyId
@@ -545,7 +545,7 @@ func (s *SingleWalletTestSuite) TestListTransactions() {
 
 	transactions := *resp.JSON200
 	if len(transactions) == 0 {
-		log.Warnf("Cannot test Transaction requests: no transactions available")
+		Log.Warnf("Cannot test Transaction requests: no transactions available")
 		return
 	}
 	transactionId := transactions[0].Id

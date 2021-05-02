@@ -8,12 +8,12 @@ import (
 )
 
 // Package-internal logger. Can be exported when required.
-var log = logrus.New()
+var Log = logrus.New()
 
 func init() {
 	formatter := newLogFormatter()
 	logrus.StandardLogger().SetFormatter(formatter)
-	log.SetFormatter(formatter)
+	Log.SetFormatter(formatter)
 }
 
 func newLogFormatter() *myFormatter {

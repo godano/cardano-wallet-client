@@ -1,0 +1,65 @@
+package wallet
+
+import (
+	"context"
+	"reflect"
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/suite"
+)
+
+type ParameterNamesTestSuite struct {
+	testSuiteBase
+}
+
+func TestParameterNames(t *testing.T) {
+	testSuite := new(ParameterNamesTestSuite)
+	testSuite.ctx = context.Background()
+	suite.Run(t, testSuite)
+}
+
+func (s *ParameterNamesTestSuite) SetupSuite() {
+	s.testSuiteBase.Assertions = s.Require()
+	s.client = new(ClientWithResponses)
+}
+
+func (s *ParameterNamesTestSuite) TestParameterNames() {
+	methods := getMethods(s.client)
+
+	// Make a copy since we modify the map below
+	paramNames := make(map[string][]string, len(ArgumentNames)+len(ArgumentNamesWithResponse))
+	for method, names := range ArgumentNames {
+		paramNames[method] = names
+	}
+	for method, names := range ArgumentNamesWithResponse {
+		paramNames[method] = names
+	}
+
+	for _, method := range methods {
+		s.Contains(paramNames, method.Name)
+		actualNumParams := len(paramNames[method.Name])
+		actualNumParams++ // For the receiver
+		actualNumParams++ // For the context
+		if !strings.HasSuffix(method.Name, "WithResponse") {
+			actualNumParams++ // For variadic reqEditors parameter
+		}
+
+		expectedNumParams := method.Type.NumIn()
+
+		s.Equal(expectedNumParams, actualNumParams,
+			"Method %v reported %v parameters, but actually has %v", method.Name, actualNumParams, expectedNumParams)
+		delete(paramNames, method.Name)
+	}
+
+	s.Empty(paramNames, "ParameterNames or ArgumentNamesWithResponse contain non-existing methods")
+}
+
+func getMethods(obj interface{}) []reflect.Method {
+	clientType := reflect.TypeOf(obj)
+	methods := make([]reflect.Method, clientType.NumMethod())
+	for i := range methods {
+		methods[i] = clientType.Method(i)
+	}
+	return methods
+}
