@@ -12,11 +12,11 @@ A Go client for the [cardano-wallet](https://github.com/input-output-hk/cardano-
 The bulk of this client code is generated using [oapi-codegen](https://github.com/deepmap/oapi-codegen), based on the [Open API definition](https://input-output-hk.github.io/cardano-wallet/api/edge/swagger.yaml) of `cardano-wallet`.
 
 The [wallet package](wallet/) contains the generated client library, along with a few convenience functions and tests.
-A `cmd/godano-wallet-cli` executable is planned as a thin wrapper for the client library.
+[The cmd/godano-wallet-cli package](cmd/godano-wallet-cli/) is thin CLI wrapper for the client library.
 
 # Using the client library
 
-A client can be conveniently created using `NewWalletClient`. See the `ClientWithResponses` interface for a full list of supported operations.
+A client can be conveniently created using `wallet.NewWalletClient`. See the `wallet.ClientWithResponses` interface for a full list of supported operations.
 
 ```
 client, err := wallet.NewWalletClient()
@@ -48,6 +48,42 @@ client, err := wallet.NewWalletClientFor(addr, conf)
 ```
 
 For even more control over the HTTP client parameters, copy and edit the content of `NewWalletClientFor`.
+
+# Using the CLI
+
+Run the excecutable for a list of available commands. The commands mirror CRUD operations of the `cardano-wallet` REST API.
+
+```
+$ go run ./cmd/godano-wallet-client
+
+godano-wallet-cli connects to the REST API of a cardano-wallet process and
+	translates the CLI commands and parameters to appropriate REST API calls
+
+Usage:
+  godano-wallet-cli [command]
+
+Available Commands:
+  Address             Query and modify Address objects
+  Asset               Query and modify Asset objects
+  AssetDefault        Query and modify AssetDefault objects
+  DelegationFee       Query and modify DelegationFee objects
+  MaintenanceActions  Query and modify MaintenanceActions objects
+  NetworkInformation  Query and modify NetworkInformation objects
+  NetworkParameters   Query and modify NetworkParameters objects
+  Settings            Query and modify Settings objects
+  SharedWallet        Query and modify SharedWallet objects
+  Transaction         Query and modify Transaction objects
+  UTxOsStatistics     Query and modify UTxOsStatistics objects
+  Wallet              Query and modify Wallet objects
+  WalletKey           Query and modify WalletKey objects
+  WalletMigrationInfo Query and modify WalletMigrationInfo objects
+  help                Help about any command
+
+Flags:
+  -h, --help   help for godano-wallet-cli
+
+Use "godano-wallet-cli [command] --help" for more information about a command.
+```
 
 # Updating the generated code
 
