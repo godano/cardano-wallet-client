@@ -9,17 +9,19 @@
 
 A Go client for the [cardano-wallet](https://github.com/input-output-hk/cardano-wallet) by IOG.
 
-The bulk of this client code is generated using [oapi-codegen](https://github.com/deepmap/oapi-codegen), based on the [Open API definition](https://input-output-hk.github.io/cardano-wallet/api/edge/swagger.yaml) of `cardano-wallet`.
+The bulk of this client code is generated using [oapi-codegen](https://github.com/deepmap/oapi-codegen), based on the [Open API definition](https://input-output-hk.github.io/cardano-wallet/api/edge/swagger.yaml) of `cardano-wallet`, which is documented [here](https://input-output-hk.github.io/cardano-wallet/api/edge/).
 
 The [wallet package](wallet/) contains the generated client library, along with a few convenience functions and tests.
 [The cmd/godano-wallet-cli package](cmd/godano-wallet-cli/) is thin CLI wrapper for the client library.
 
 # Using the client library
 
-A client can be conveniently created using `wallet.NewWalletClient`. See the `wallet.ClientWithResponses` interface for a full list of supported operations.
+A client can be conveniently created using any of the `New[HTTPS]Client[WithResponses]` methods.
+See the `Client` or `ClientWithResponses` interfaces for a full list of supported operations, which mirror the [cardano-wallet REST API](https://input-output-hk.github.io/cardano-wallet/api/edge/).
 
 ```
-client, err := wallet.NewWalletClient()
+addr := "https://localhost:12345/v2"
+client, err := wallet.NewHTTPSClientWithResponses(addr, wallet.MakeTLSConfig())
 ctx := context.Background()
 settings, err := client.GetSettingsWithResponse(ctx)
 pools, err := client.ListStakePoolsWithResponse(ctx, &ListStakePoolsParams {
@@ -28,62 +30,61 @@ pools, err := client.ListStakePoolsWithResponse(ctx, &ListStakePoolsParams {
 ```
 
 The following environment variables control the connection to the `cardano-wallet` server.
-The variables are designed to enable communication with the `cardano-wallet` process started by the Daedalus wallet. Other instances of `cardano-wallet` might require different parameters, see below.
+The `wallet.MakeTLSConfig()` method creates a TLS configuration for communication with the `cardano-wallet` process started by the Daedalus wallet.
+Other instances of `cardano-wallet` might require different parameters.
+Using `wallet.MakeTLSConfig()`, or HTTPS for that matter, is optional.
+`wallet.MakeTLSConfig()` uses the following environment variables:
 
 ```
 DAEDALUS_DIR="$HOME/.local/share/Daedalus/mainnet"
-
-export GODANO_WALLET_CLIENT_SERVER_ADDRESS=""
 export GODANO_WALLET_CLIENT_TLS_SKIP_VERIFY="false" # Can be set to true instead of providing GODANO_WALLET_CLIENT_SERVER_CA
 export GODANO_WALLET_CLIENT_SERVER_CA="$DAEDALUS_DIR/tls/server/ca.crt"
 export GODANO_WALLET_CLIENT_CLIENT_CERT="$DAEDALUS_DIR/tls/client/client.crt"
 export GODANO_WALLET_CLIENT_CLIENT_KEY="$DAEDALUS_DIR/tls/client/client.key"
 ```
 
-Alternatively, the configuration based on environment variables can be skipped using `NewWalletClientFor`:
-```
-addr := "https://127.0.0.1:44107/v2"
-conf := &tls.TLSConfig{/*...*/}
-client, err := wallet.NewWalletClientFor(addr, conf)
-```
-
-For even more control over the HTTP client parameters, copy and edit the content of `NewWalletClientFor`.
-
 # Using the CLI
 
-Run the excecutable for a list of available commands. The commands mirror CRUD operations of the `cardano-wallet` REST API.
+Run the executable for a list of available commands. The commands mirror CRUD operations of the [`cardano-wallet` REST API](https://input-output-hk.github.io/cardano-wallet/api/edge/).
 
 ```
 $ go run ./cmd/godano-wallet-client
-
 godano-wallet-cli connects to the REST API of a cardano-wallet process and
-	translates the CLI commands and parameters to appropriate REST API calls
+translates the CLI commands and parameters to appropriate REST API calls
 
 Usage:
   godano-wallet-cli [command]
 
 Available Commands:
-  Address             Query and modify Address objects
-  Asset               Query and modify Asset objects
-  AssetDefault        Query and modify AssetDefault objects
-  DelegationFee       Query and modify DelegationFee objects
-  MaintenanceActions  Query and modify MaintenanceActions objects
-  NetworkInformation  Query and modify NetworkInformation objects
-  NetworkParameters   Query and modify NetworkParameters objects
-  Settings            Query and modify Settings objects
-  SharedWallet        Query and modify SharedWallet objects
-  Transaction         Query and modify Transaction objects
-  UTxOsStatistics     Query and modify UTxOsStatistics objects
-  Wallet              Query and modify Wallet objects
-  WalletKey           Query and modify WalletKey objects
-  WalletMigrationInfo Query and modify WalletMigrationInfo objects
+  Address             import or inspect Address objects
+  Asset               get or list Asset objects
+  AssetDefault        get AssetDefault
+  DelegationFee       get DelegationFee
+  MaintenanceActions  get MaintenanceActions
+  NetworkInformation  get NetworkInformation
+  NetworkParameters   get NetworkParameters
+  Settings            get Settings
+  SharedWallet        delete or get SharedWallet objects
+  Transaction         delete or get Transaction objects
+  UTxOsStatistics     get UTxOsStatistics
+  Wallet              delete, get, or list Wallet objects
+  WalletKey           get WalletKey
+  WalletMigrationInfo get WalletMigrationInfo
   help                Help about any command
 
 Flags:
-  -h, --help   help for godano-wallet-cli
+  -h, --help            help for godano-wallet-cli
+  -q, --quiet           Set the log level to Warning
+  -Q, --quieter         Set the log level to Error
+  -s, --server string   Endpoint of the cardano-wallet process to connect to (default "https://127.0.0.1:34953/v2")
+  -v, --verbose         Set the log level to Debug
+  -y, --yaml            Output responses as YAML instead of JSON (more compact)
 
 Use "godano-wallet-cli [command] --help" for more information about a command.
+
 ```
+
+The environment variable `GODANO_WALLET_CLIENT_SERVER_ADDRESS` is the default server URL to connect to, which can be overwritten by the `-s` flag. The tests (see below), also use this environment variable.
 
 # Updating the generated code
 

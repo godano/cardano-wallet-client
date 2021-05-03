@@ -12,23 +12,55 @@ import (
 	"time"
 )
 
-const (
-	EnvServerAdress   = "GODANO_WALLET_CLIENT_SERVER_ADDRESS"
+// These env-var names are defined as `var` and not `const` on purpose,
+// them configurabled by client code, if necessary.
+var (
 	EnvTLSSkipVerify  = "GODANO_WALLET_CLIENT_TLS_SKIP_VERIFY"
 	EnvServerCAFile   = "GODANO_WALLET_CLIENT_SERVER_CA"
 	EnvClientCertFile = "GODANO_WALLET_CLIENT_CLIENT_CERT"
 	EnvClientKeyFile  = "GODANO_WALLET_CLIENT_CLIENT_KEY"
 
-	DefaulWalletServer = "https://127.0.0.1:44107/v2"
+	// This env-var is not evaluated by MakeTLSConfig(), but in client_test.go and cmd/godano-wallet-cli
+	EnvVarWalletServerAddress = "GODANO_WALLET_CLIENT_SERVER_ADDRESS"
 )
 
-func NewWalletClient() (ClientWithResponsesInterface, error) {
+func NewHTTPSClient(server string, tlsConfig *tls.Config) (*Client, error) {
+	return NewClient(server, WithHTTPSClient(tlsConfig))
+}
+
+func NewHTTPSClientWithResponses(server string, tlsConfig *tls.Config) (*ClientWithResponses, error) {
+	return NewClientWithResponses(server, WithHTTPSClient(tlsConfig))
+}
+
+func WithHTTPSClient(tlsConfig *tls.Config) ClientOption {
+	// Default Transport values copied from http package, TLSClientConfig modified. Avoid copying http.DefaultTransport.
+	return WithHTTPClient(&http.Client{
+		Transport: &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+			DialContext: (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+				DualStack: true,
+			}).DialContext,
+			ForceAttemptHTTP2:     true,
+			MaxIdleConns:          100,
+			IdleConnTimeout:       90 * time.Second,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+			TLSClientConfig:       tlsConfig,
+		},
+	})
+}
+
+// MakeTLSConfig creates a *tls.Config objects based on the GODANO_WALLET_CLIENT_* environment
+// variables defined above.
+func MakeTLSConfig() (*tls.Config, error) {
 	tlsConfig := new(tls.Config)
 
 	if skipVerifyStr := os.Getenv(EnvTLSSkipVerify); skipVerifyStr != "" {
 		skipVerify, err := strconv.ParseBool(skipVerifyStr)
 		if err != nil {
-			Log.Warnf("Failed to parse env-var %v=%v as bool: %v. Assuming false.",
+			return nil, fmt.Errorf("Failed to parse env-var %v=%v as bool: %v",
 				EnvTLSSkipVerify, skipVerifyStr, err)
 		} else {
 			tlsConfig.InsecureSkipVerify = skipVerify
@@ -37,7 +69,7 @@ func NewWalletClient() (ClientWithResponsesInterface, error) {
 
 	// Load server CA
 	if serverCAFile := os.Getenv(EnvServerCAFile); serverCAFile != "" {
-		caRootPool, err := loadCACert(serverCAFile)
+		caRootPool, err := LoadCACert(serverCAFile)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to load server CA file '%v': %v", serverCAFile, err)
 		}
@@ -60,38 +92,10 @@ func NewWalletClient() (ClientWithResponsesInterface, error) {
 		tlsConfig.Certificates = []tls.Certificate{cert}
 	}
 
-	address := os.Getenv(EnvServerAdress)
-	if address == "" {
-		address = DefaulWalletServer
-	}
-
-	return NewWalletClientFor(address, tlsConfig)
+	return tlsConfig, nil
 }
 
-func NewWalletClientFor(server string, tlsConfig *tls.Config) (ClientWithResponsesInterface, error) {
-	// Default Transport values copied from http package, TLSClientConfig modified
-	transport := &http.Transport{
-		Proxy: http.ProxyFromEnvironment,
-		DialContext: (&net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
-			DualStack: true,
-		}).DialContext,
-		ForceAttemptHTTP2:     true,
-		MaxIdleConns:          100,
-		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   10 * time.Second,
-		ExpectContinueTimeout: 1 * time.Second,
-		TLSClientConfig:       tlsConfig,
-	}
-	client := &http.Client{
-		Transport: transport,
-	}
-
-	return NewClientWithResponses(server, WithHTTPClient(client))
-}
-
-func loadCACert(caFileName string) (*x509.CertPool, error) {
+func LoadCACert(caFileName string) (*x509.CertPool, error) {
 	caCert, err := ioutil.ReadFile(caFileName)
 	if err != nil {
 		return nil, err

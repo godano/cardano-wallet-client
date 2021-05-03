@@ -30,7 +30,7 @@ var objectRemappings = map[string]string{
 	"Wallets":      "Wallet",
 }
 
-func inspectClientInterface(clientObj interface{}) map[string]*clientMethod {
+func (c *walletCLI) inspectClientInterface(clientObj interface{}) map[string]*clientMethod {
 	methods := make(map[string]*clientMethod)
 	objType := reflect.TypeOf(clientObj)
 	for i := 0; i < objType.NumMethod(); i++ {
@@ -45,6 +45,7 @@ func inspectClientInterface(clientObj interface{}) map[string]*clientMethod {
 			continue
 		}
 		cm := &clientMethod{
+			walletCLI:    c,
 			method:       method,
 			methodName:   methodName,
 			methodVerb:   strings.ToLower(match[1]),
@@ -56,16 +57,17 @@ func inspectClientInterface(clientObj interface{}) map[string]*clientMethod {
 
 		err := cm.init(method)
 		if err != nil {
-			Log.Debugf("Skipping method %v: %v", methodName, err)
+			c.log.Debugf("Skipping method %v: %v", methodName, err)
 			continue
 		}
-		Log.Debugf("Found method %v", cm)
+		c.log.Debugf("Found method %v", cm)
 		methods[methodName] = cm
 	}
 	return methods
 }
 
 type clientMethod struct {
+	*walletCLI
 	method reflect.Method
 
 	methodName   string
@@ -142,7 +144,7 @@ func (c *clientMethod) call(receiver interface{}, ctx context.Context, useByronV
 		args[j] = reflect.ValueOf(argVal)
 	}
 
-	Log.Debugf("Calling %v with arguments: %v", method.Name, args)
+	c.log.Debugf("Calling %v with arguments: %v", method.Name, args)
 	result := method.Func.Call(args)
 
 	if len(result) != 2 {

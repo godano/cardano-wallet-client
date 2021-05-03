@@ -7,12 +7,20 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"regexp"
 	"testing"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
+
+var log = logrus.New()
+
+// To execute the tests, either set `testWalletServerAddress` to a valid cardano-wallet endpoint,
+// or set the `GODANO_WALLET_CLIENT_SERVER_ADDRESS` env-var to that value.
+const testWalletServerAddress = ""
 
 type testSuiteBase struct {
 	suite.Suite
@@ -40,14 +48,14 @@ func (s *testSuiteBase) matches(valueName string, value string, regexStr string)
 func (s *testSuiteBase) logObject(name string, obj interface{}) {
 	marshalled, err := json.MarshalIndent(obj, "", "    ")
 	if err != nil {
-		Log.Errorf("Failed to JSON-marshal response object: %v", err)
+		log.Errorf("Failed to JSON-marshal response object: %v", err)
 		return
 	}
 	scanner := bufio.NewScanner(bytes.NewReader(marshalled))
 	scanner.Split(bufio.ScanLines)
-	Log.Infof("%v:", name)
+	log.Infof("%v:", name)
 	for scanner.Scan() {
-		Log.Info(scanner.Text())
+		log.Info(scanner.Text())
 	}
 }
 
@@ -64,8 +72,18 @@ func TestCardanoWalletClient(t *testing.T) {
 func (s *CardanoWalletTestSuite) SetupSuite() {
 	s.testSuiteBase.Assertions = s.Require()
 
-	var err error
-	s.client, err = NewWalletClient()
+	address := testWalletServerAddress
+	if envAddress := os.Getenv(EnvVarWalletServerAddress); envAddress != "" {
+		address = envAddress
+	}
+	if address == "" {
+		s.Fail("To execute tests, either define WalletServerAddress in client_test.go, or set the GODANO_WALLET_CLIENT_SERVER_ADDRESS environment variable")
+	}
+
+	tlsConfig, err := MakeTLSConfig()
+	s.NoError(err)
+
+	s.client, err = NewHTTPSClientWithResponses(address, tlsConfig)
 	s.NoError(err)
 	s.NotNil(s.client)
 }
@@ -251,7 +269,7 @@ func (s *CardanoWalletTestSuite) TestListByronWallets() {
 
 	wallets := *resp.JSON200
 	if len(wallets) == 0 {
-		Log.Warnf("Cannot test ByronWallet requests: no Byron wallets available")
+		log.Warnf("Cannot test ByronWallet requests: no Byron wallets available")
 		return
 	}
 
@@ -297,7 +315,7 @@ func (s *ByronWalletTestSuite) TestListByronAddresses() {
 
 	addresses := *resp.JSON200
 	if len(addresses) == 0 {
-		Log.Warnf("Cannot test Byron Address requests: no addresses available")
+		log.Warnf("Cannot test Byron Address requests: no addresses available")
 		return
 	}
 	addressId := addresses[0].Id
@@ -321,7 +339,7 @@ func (s *ByronWalletTestSuite) TestByronListAssets() {
 
 	assets := *resp.JSON200
 	if len(assets) == 0 {
-		Log.Warnf("Cannot test ByronAsset requests: no assets available")
+		log.Warnf("Cannot test ByronAsset requests: no assets available")
 		return
 	}
 	policyId := assets[0].PolicyId
@@ -379,7 +397,7 @@ func (s *ByronWalletTestSuite) TestByronListTransactions() {
 
 	transactions := *resp.JSON200
 	if len(transactions) == 0 {
-		Log.Warnf("Cannot test ByronTransaction requests: no transactions available")
+		log.Warnf("Cannot test ByronTransaction requests: no transactions available")
 		return
 	}
 	transactionId := transactions[0].Id
@@ -404,7 +422,7 @@ func (s *CardanoWalletTestSuite) TestListWallets() {
 
 	wallets := *resp.JSON200
 	if len(wallets) == 0 {
-		Log.Warnf("Cannot test Wallet requests: no wallets available")
+		log.Warnf("Cannot test Wallet requests: no wallets available")
 		return
 	}
 
@@ -450,7 +468,7 @@ func (s *SingleWalletTestSuite) TestListAddresses() {
 
 	addresses := *resp.JSON200
 	if len(addresses) == 0 {
-		Log.Warnf("Cannot test Address requests: no addresses available")
+		log.Warnf("Cannot test Address requests: no addresses available")
 		return
 	}
 	addressId := addresses[0].Id
@@ -485,7 +503,7 @@ func (s *SingleWalletTestSuite) TestListAssets() {
 
 	assets := *resp.JSON200
 	if len(assets) == 0 {
-		Log.Warnf("Cannot test Asset requests: no assets available")
+		log.Warnf("Cannot test Asset requests: no assets available")
 		return
 	}
 	policyId := assets[0].PolicyId
@@ -545,7 +563,7 @@ func (s *SingleWalletTestSuite) TestListTransactions() {
 
 	transactions := *resp.JSON200
 	if len(transactions) == 0 {
-		Log.Warnf("Cannot test Transaction requests: no transactions available")
+		log.Warnf("Cannot test Transaction requests: no transactions available")
 		return
 	}
 	transactionId := transactions[0].Id

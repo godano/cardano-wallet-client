@@ -1,19 +1,30 @@
-package wallet
+package main
 
 import (
 	"bytes"
+	"os"
 	"time"
 
 	"github.com/sirupsen/logrus"
 )
 
-// Package-internal logger. Can be exported when required.
-var Log = logrus.New()
+// By setting GODANO_WALLET_CLIENT_VERBOSE, allow debug-level output before the main Cobra command is executed
+func (c *walletCLI) configureEarlyLogLevel() {
+	if os.Getenv("GODANO_WALLET_CLIENT_VERBOSE") != "" {
+		c.log.SetLevel(logrus.DebugLevel)
+	}
+}
 
-func init() {
-	formatter := newLogFormatter()
-	logrus.StandardLogger().SetFormatter(formatter)
-	Log.SetFormatter(formatter)
+func (c *walletCLI) configureLogLevel() {
+	level := logrus.InfoLevel
+	if c.logVerbose {
+		level = logrus.DebugLevel
+	} else if c.logVeryQuiet {
+		level = logrus.ErrorLevel
+	} else if c.logQuiet {
+		level = logrus.WarnLevel
+	}
+	c.log.SetLevel(level)
 }
 
 func newLogFormatter() *myFormatter {
@@ -37,7 +48,7 @@ func (f *myFormatter) Format(e *logrus.Entry) ([]byte, error) {
 		return text, err
 	}
 	// Remove all whitespace and replace with a single trailing newline character
-	// Many libraries explicitly add a \n character to log lines, which leads to empty lines.
+	// Avoid empty log lines due to trailing \n characters
 	text = bytes.TrimSpace(text)
 	text = append(text, '\n')
 	return text, nil
