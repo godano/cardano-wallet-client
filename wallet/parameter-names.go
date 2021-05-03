@@ -1,5 +1,10 @@
 package wallet
 
+// ArgumentNames maps method names from the `ClientInterface` to their parameter names.
+// The receiver and the first parameter (ctx) are excluded.
+//
+// TODO this could and should be auto-generated from swagger.yaml or based on the source code of
+// ClientInterface. The problem is that Go drops parameter names during compilation.
 var ArgumentNames = map[string][]string{
 	"PostAnyAddress":                {"body"},
 	"InspectAddress":                {"addressId"},
@@ -67,6 +72,9 @@ var ArgumentNames = map[string][]string{
 	"GetTransaction":                {"walletId", "transactionId"},
 }
 
+// MethodHasBody contains all methods that have a *WithBody variant (e.g. PostAnyAddress -> PostAnyAddressWithBody)
+// These methods have the same parameters as listed above, except that the body content is given as a
+// `contentType string` and `body io.Reader`, instead of a method-specific struct.
 var MethodHasBody = map[string]bool{
 	"PostAnyAddress":                true,
 	"PostByronWallet":               true,
@@ -88,7 +96,7 @@ var MethodHasBody = map[string]bool{
 	"JoinStakePool":                 true,
 	"PostWallet":                    true,
 	"PutWallet":                     true,
-	"SelectCoins":                   true, // ab hier ok
+	"SelectCoins":                   true,
 	"PostAccountKey":                true,
 	"MigrateShelleyWallet":          true,
 	"PutWalletPassphrase":           true,
@@ -97,6 +105,8 @@ var MethodHasBody = map[string]bool{
 	"PostTransaction":               true,
 }
 
+// ArgumentNamesWithResponse is a copy of ArgumentNames, with each method suffixed by `WithResponse`.
+// These methods and parameter names correspond to the `ClientWithResponse` Interface.
 var ArgumentNamesWithResponse = make(map[string][]string, len(ArgumentNames))
 
 func init() {
@@ -109,7 +119,7 @@ func init() {
 		ArgumentNames[name+"WithBody"] = params
 	}
 
-	// This method does not have the version without *WithBody
+	// Exception: this method does not have the version without *WithBody
 	delete(ArgumentNames, "PostExternalTransaction")
 
 	// Add *WithResponse methods from the ClientWithResponsesInterface

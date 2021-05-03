@@ -23,6 +23,9 @@ func (s *ParameterNamesTestSuite) SetupSuite() {
 	s.Assertions = s.Require()
 }
 
+// TestParameterNames tests that `ArgumentNames` and `ArgumentNamesWithResponse` correspond to the methods in
+// `Client` and `ClientWithResponse`. This test will report, if after updating the generated code, the manually
+// defined parameter names must be updated.
 func (s *ParameterNamesTestSuite) TestParameterNames() {
 	client := new(ClientWithResponses)
 	methods := getMethods(client)
@@ -37,7 +40,7 @@ func (s *ParameterNamesTestSuite) TestParameterNames() {
 	}
 
 	for _, method := range methods {
-		s.Contains(paramNames, method.Name)
+		s.Contains(paramNames, method.Name, "Every method in ClientWithResponses must be included in ArgumentNames or ArgumentNamesWithResponse")
 		actualNumParams := len(paramNames[method.Name])
 		actualNumParams++ // For the receiver
 		actualNumParams++ // For the context
@@ -52,7 +55,7 @@ func (s *ParameterNamesTestSuite) TestParameterNames() {
 		delete(paramNames, method.Name)
 	}
 
-	s.Empty(paramNames, "ParameterNames or ArgumentNamesWithResponse contain non-existing methods")
+	s.Empty(paramNames, "ArgumentNames or ArgumentNamesWithResponse contain non-existing methods")
 }
 
 func getMethods(obj interface{}) []reflect.Method {

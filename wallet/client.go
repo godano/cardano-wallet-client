@@ -24,14 +24,17 @@ var (
 	EnvVarWalletServerAddress = "GODANO_WALLET_CLIENT_SERVER_ADDRESS"
 )
 
+// NewHTTPSClient returns a `Client` with the given TLS configuration.
 func NewHTTPSClient(server string, tlsConfig *tls.Config) (*Client, error) {
 	return NewClient(server, WithHTTPSClient(tlsConfig))
 }
 
+// NewHTTPSClient returns a `ClientWithResponse` with the given TLS configuration.
 func NewHTTPSClientWithResponses(server string, tlsConfig *tls.Config) (*ClientWithResponses, error) {
 	return NewClientWithResponses(server, WithHTTPSClient(tlsConfig))
 }
 
+// WithHTTPSClient returns a `ClientOption` that sets the given TLS configuration on clients.
 func WithHTTPSClient(tlsConfig *tls.Config) ClientOption {
 	// Default Transport values copied from http package, TLSClientConfig modified. Avoid copying http.DefaultTransport.
 	return WithHTTPClient(&http.Client{
@@ -95,6 +98,8 @@ func MakeTLSConfig() (*tls.Config, error) {
 	return tlsConfig, nil
 }
 
+// LoadCACert loads the given server certificate into a certificate pool, which can be
+// set in the `RootCAs` field of `tls.Config`.
 func LoadCACert(caFileName string) (*x509.CertPool, error) {
 	caCert, err := ioutil.ReadFile(caFileName)
 	if err != nil {

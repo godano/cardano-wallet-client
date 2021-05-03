@@ -86,6 +86,9 @@ Use "godano-wallet-cli [command] --help" for more information about a command.
 
 The environment variable `GODANO_WALLET_CLIENT_SERVER_ADDRESS` is the default server URL to connect to, which can be overwritten by the `-s` flag. The tests (see below), also use this environment variable.
 
+The environment variable `GODANO_WALLET_CLIENT_VERBOSE` can be set to a non-empty value to enable early debug-level logging in the CLI.
+This will show how the CLI analyses methods in the `wallet.Client` interface for dynamically generating commands and sub-commands.
+
 # Updating the generated code
 
 The `generate.sh` script updates the generated code:
@@ -93,10 +96,10 @@ The `generate.sh` script updates the generated code:
 ./generate.sh
 ```
 
-The script uses `oapi-codegen`, `goimports`, and `gofumpt`, as well as `mkdir`, `wget`, and `sed`.See the comments in the script on how to install these requirements.
-The script only updates files named `wallet/generated-*.go`. If for example the package name is changed to something different than `wallet`, the other files must be updated manually.
+The script uses `oapi-codegen`, `goimports`, and `gofumpt`, as well as `mkdir`, `wget`, and `sed`. See the comments in the script on how to install these requirements.
+The script updates `swagger.yaml` and files named `wallet/generated-*.go`. If for example the package name is changed to something different than `wallet`, the other files in [the wallet package](wallet) must be updated manually.
 
-Due to a (presumed) bug in `oapi-codegen`, the generated code is patched using `sed` after generation. Two missing structs (`Metadata` and `Distributions`) are implemented in `wallet/types-*.go`. Both these structs use integers as keys in JSON response objects, which is a rare use ase and could be the reason for the errorenous code generation.
+Due to a (presumed) bug in `oapi-codegen`, the generated code is patched using `sed` after generation. Two missing structs (`Metadata` and `Distributions`) are implemented in `wallet/types-*.go`. Both these structs use integers as keys in JSON response objects, which is a rare use case and could be the reason for the errorenous code generation.
 
 # Testing
 
@@ -106,9 +109,11 @@ Run
 go test ./wallet
 ```
 
-to perform some basic connection tests. The tests connect to the `cardano-wallet` process as configured through the environment variables above. The tests aim to cover all simple and non-destructive read operations (`Get*`, `List*`, `Inspect*`).
+to perform some basic request tests.
+The tests connect to the `cardano-wallet` process as configured through the environment variables above.
+The tests aim to cover all simple and non-destructive read operations (`Get*`, `List*`, `Inspect*`).
 
-Add the `-v` switch to see the received and parsed information from each request:
+Add the `-v` switch to see the received and parsed responses from each request:
 
 ```
 go test -v ./wallet
