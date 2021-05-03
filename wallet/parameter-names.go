@@ -72,7 +72,7 @@ var ArgumentNames = map[string][]string{
 	"GetTransaction":                {"walletId", "transactionId"},
 }
 
-// MethodHasBody contains all methods that have a *WithBody variant (e.g. PostAnyAddress -> PostAnyAddressWithBody)
+// MethodHasBody contains the names of all methods that have a *WithBody variant (e.g. PostAnyAddress -> PostAnyAddressWithBody)
 // These methods have the same parameters as listed above, except that the body content is given as a
 // `contentType string` and `body io.Reader`, instead of a method-specific struct.
 var MethodHasBody = map[string]bool{

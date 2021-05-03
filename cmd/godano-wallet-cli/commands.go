@@ -10,7 +10,7 @@ import (
 
 func (c *walletCLI) rootCommand() *cobra.Command {
 	rootCmd := &cobra.Command{
-		Use:   "godano-wallet-cli command",
+		Use:   "godano-wallet-cli object operation",
 		Short: "CLI for the cardano-wallet REST API",
 		Long: `godano-wallet-cli connects to the REST API of a cardano-wallet process and
 translates the CLI commands and parameters to appropriate REST API calls`,
@@ -76,8 +76,17 @@ func (c *clientMethod) registerCommand(rootCmd *cobra.Command, clientObj interfa
 }
 
 func (c *clientMethod) configureCommand(cmd *cobra.Command) {
+	numArgs := 0
+	for _, arg := range c.args {
+		if !arg.isStructParameter() {
+			// TODO support setting struct params
+			numArgs++
+			cmd.Use += fmt.Sprintf(" <%v>", arg.name)
+		}
+	}
+	cmd.Args = cobra.ExactArgs(numArgs)
+
 	var useByronVariant bool
-	cmd.Args = cobra.ExactArgs(len(c.args))
 	cmd.Run = func(cmd *cobra.Command, args []string) {
 		for i := range args {
 			// TODO do not modify referenced arg objects here...
@@ -93,6 +102,7 @@ func (c *clientMethod) configureCommand(cmd *cobra.Command) {
 	}
 
 	if c.byronVariant != nil {
+		cmd.Use += " [--byron]"
 		cmd.Flags().BoolVar(&useByronVariant, "byron", false, "Use the Byron variant of this command")
 	}
 }

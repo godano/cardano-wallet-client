@@ -56,16 +56,19 @@ Usage:
   godano-wallet-cli [command]
 
 Available Commands:
-  Address             import or inspect Address objects
+  Address             import, inspect, or list Address objects
   Asset               get or list Asset objects
   AssetDefault        get AssetDefault
+  CurrentSmashHealth  get CurrentSmashHealth
   DelegationFee       get DelegationFee
   MaintenanceActions  get MaintenanceActions
+  NetworkClock        get NetworkClock
   NetworkInformation  get NetworkInformation
   NetworkParameters   get NetworkParameters
   Settings            get Settings
   SharedWallet        delete or get SharedWallet objects
-  Transaction         delete or get Transaction objects
+  StakePool           list StakePool
+  Transaction         delete, get, or list Transaction objects
   UTxOsStatistics     get UTxOsStatistics
   Wallet              delete, get, or list Wallet objects
   WalletKey           get WalletKey
@@ -81,7 +84,6 @@ Flags:
   -y, --yaml            Output responses as YAML instead of JSON (more compact)
 
 Use "godano-wallet-cli [command] --help" for more information about a command.
-
 ```
 
 The environment variable `GODANO_WALLET_CLIENT_SERVER_ADDRESS` is the default server URL to connect to, which can be overwritten by the `-s` flag. The tests (see below), also use this environment variable.

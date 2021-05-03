@@ -28,6 +28,8 @@ var objectRemappings = map[string]string{
 	"Transactions": "Transaction",
 	"Assets":       "Asset",
 	"Wallets":      "Wallet",
+	"StakePools":   "StakePool",
+	"Addresses":    "Address",
 }
 
 func (c *walletCLI) inspectClientInterface(clientObj interface{}) map[string]*clientMethod {
@@ -104,16 +106,15 @@ func (c *clientMethod) init(method reflect.Method) error {
 	}
 	for i := range c.args {
 		argType := methodType.In(i + fixedArguments)
-		if argType.Kind() != reflect.String {
-			// TODO implement non-string arguments
-			return fmt.Errorf("Currently only string args supported, cannot handle '%v' of kind %v",
-				argType.Name(), argType.Kind())
+		arg := &clientMethodArg{
+			method: c,
+			name:   argNames[i],
+			typ:    argType,
 		}
-
-		c.args[i] = &clientMethodArg{
-			name: argNames[i],
-			typ:  argType,
+		if err := arg.checkSupportedArgType(argType); err != nil {
+			return err
 		}
+		c.args[i] = arg
 	}
 	return nil
 }
@@ -145,20 +146,27 @@ func (c *clientMethod) call(receiver interface{}, ctx context.Context, useByronV
 	}
 
 	c.log.Debugf("Calling %v with arguments: %v", method.Name, args)
-	result := method.Func.Call(args)
+	return c.unpackResult(method.Func.Call(args))
+}
 
+func (c *clientMethod) unpackResult(result []reflect.Value) (*http.Response, error) {
 	if len(result) != 2 {
 		return nil, fmt.Errorf("Unexpected number of method outputs (%v): %v", len(result), result)
 	} else {
-		resp, ok := result[0].Interface().(*http.Response)
-		if !ok {
-			return nil, fmt.Errorf("Unexpected first response value (expected *http.Response): %v", result[0].Interface())
+		respValue, errValue := result[0], result[1]
+		var resp *http.Response
+		var ok bool
+		if !respValue.IsNil() {
+			resp, ok = respValue.Interface().(*http.Response)
+			if !ok {
+				return nil, fmt.Errorf("Unexpected first response value (expected *http.Response): %v", respValue.Interface())
+			}
 		}
 		var err error
-		if !result[1].IsNil() {
-			err, ok = result[1].Interface().(error)
+		if !errValue.IsNil() {
+			err, ok = errValue.Interface().(error)
 			if !ok {
-				return nil, fmt.Errorf("Unexpected second response value (expected error): %v", result[1].Interface())
+				return nil, fmt.Errorf("Unexpected second response value (expected error): %v", errValue.Interface())
 			}
 		}
 		return resp, err
@@ -166,22 +174,42 @@ func (c *clientMethod) call(receiver interface{}, ctx context.Context, useByronV
 }
 
 type clientMethodArg struct {
-	name string
-	typ  reflect.Type
+	method *clientMethod
+	name   string
+	typ    reflect.Type
 
-	value string // Set by the user
+	value string // Set by the user command for non-struct arguments
 }
 
 func (a *clientMethodArg) String() string {
 	return a.name
 }
 
+func (a *clientMethodArg) checkSupportedArgType(argType reflect.Type) error {
+	// TODO properly implement struct and *struct arguments
+	if argType.Kind() == reflect.String {
+		return nil
+	}
+	if a.isStructParameter() {
+		return nil
+	}
+
+	return fmt.Errorf("Currently only string and pointer-to-struct args supported, cannot handle '%v' of kind %v",
+		argType.Name(), argType.Kind())
+}
+
+func (a *clientMethodArg) isStructParameter() bool {
+	return a.typ.Kind() == reflect.Ptr && a.typ.Elem().Kind() == reflect.Struct
+}
+
 func (a *clientMethodArg) getValue() interface{} {
 	if a.typ.Kind() == reflect.String {
 		return a.value
-	} else {
-		// TODO implement arg struct objects
-		// Returning nil here would panic, therefore such methods are currently excluded
-		return nil
+	} else if a.isStructParameter() {
+		// This relies on the fact that there is only one non-string parameter in each method.
+		// TODO fill this struct with user-defined values
+		return wallet.MakeArgument(a.method.method.Name)
 	}
+
+	return nil
 }
