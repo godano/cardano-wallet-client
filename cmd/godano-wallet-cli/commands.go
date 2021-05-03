@@ -2,10 +2,15 @@ package main
 
 import (
 	"fmt"
+	"reflect"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
+	"unsafe"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 func (c *walletCLI) rootCommand() *cobra.Command {
@@ -78,8 +83,9 @@ func (c *clientMethod) registerCommand(rootCmd *cobra.Command, clientObj interfa
 func (c *clientMethod) configureCommand(cmd *cobra.Command) {
 	numArgs := 0
 	for _, arg := range c.args {
-		if !arg.isStructParameter() {
-			// TODO support setting struct params
+		if arg.isStructParameter() {
+			arg.addCommandFlags(cmd.Flags())
+		} else {
 			numArgs++
 			cmd.Use += fmt.Sprintf(" <%v>", arg.name)
 		}
@@ -88,13 +94,9 @@ func (c *clientMethod) configureCommand(cmd *cobra.Command) {
 
 	var useByronVariant bool
 	cmd.Run = func(cmd *cobra.Command, args []string) {
-		for i := range args {
-			// TODO do not modify referenced arg objects here...
-			c.args[i].value = args[i]
-		}
 		client, err := c.connectClient()
 		c.checkErr(err)
-		res, err := c.call(client, c.ctx, useByronVariant)
+		res, err := c.call(client, c.ctx, args, useByronVariant)
 		c.checkErr(err)
 		if err == nil {
 			c.outputResponse(res)
@@ -105,4 +107,116 @@ func (c *clientMethod) configureCommand(cmd *cobra.Command) {
 		cmd.Use += " [--byron]"
 		cmd.Flags().BoolVar(&useByronVariant, "byron", false, "Use the Byron variant of this command")
 	}
+}
+
+var whitespaceRegex = regexp.MustCompile("\\s*")
+
+func (a *clientMethodArg) addCommandFlags(flags *pflag.FlagSet) {
+	val := reflect.ValueOf(a.value)
+	for i := 0; i < a.numFields(); i++ {
+		structField := a.typ.Elem().Field(i)
+		fieldType := structField.Type
+		fieldName := structField.Name
+		flagName := strings.ToLower(whitespaceRegex.ReplaceAllString(fieldName, ""))
+		flagUsage := fieldName + " parameter"
+		field := val.Elem().FieldByName(fieldName)
+		flagPointer := unsafe.Pointer(field.Addr().Pointer())
+
+		if fieldType.Kind() == reflect.Ptr {
+			// For pointer values, get a pointer from the pflags library and set it directly into the struct
+			var flagValue pflag.Value
+			switch fieldType.Elem().Kind() {
+			case reflect.Bool:
+				indirectPtr := (**bool)(flagPointer)
+				flagValue = &boolValue{target: indirectPtr}
+			case reflect.String:
+				indirectPtr := (**string)(flagPointer)
+				flagValue = &stringValue{target: indirectPtr}
+			case reflect.Int:
+				indirectPtr := (**int)(flagPointer)
+				flagValue = &intValue{target: indirectPtr}
+			}
+			flags.Var(flagValue, flagName, flagUsage)
+		} else {
+			// For non-pointer values, give the pflags library the address of the value inside the struct
+			switch fieldType.Kind() {
+			case reflect.Bool:
+				flags.BoolVar((*bool)(flagPointer), flagName, false, flagUsage)
+			case reflect.String:
+				flags.StringVar((*string)(flagPointer), flagName, "", flagUsage)
+			case reflect.Int:
+				flags.IntVar((*int)(flagPointer), flagName, 0, flagUsage)
+			}
+		}
+	}
+}
+
+// The types below are copied and modified from github.com/spf13/pflag and are necessary to avoid setting
+// default values (such as empty strings) when the user does not specify the respective flag.
+// The double-pointer
+
+type stringValue struct {
+	target **string
+}
+
+func (s *stringValue) Set(val string) error {
+	*s.target = &val
+	return nil
+}
+
+func (s *stringValue) Type() string {
+	return "string"
+}
+
+func (s *stringValue) String() string {
+	if s.target == nil {
+		return "<double-none>"
+	}
+	if *s.target == nil {
+		return "<none>"
+	}
+	return string(**s.target)
+}
+
+type boolValue struct {
+	target **bool
+}
+
+func (b *boolValue) Set(s string) error {
+	v, err := strconv.ParseBool(s)
+	*b.target = &v
+	return err
+}
+
+func (b *boolValue) Type() string {
+	return "bool"
+}
+
+func (b *boolValue) String() string {
+	if *b.target == nil {
+		return "<none>"
+	}
+	return strconv.FormatBool(bool(**b.target))
+}
+
+type intValue struct {
+	target **int
+}
+
+func (i *intValue) Set(s string) error {
+	v, err := strconv.ParseInt(s, 0, 64)
+	vInt := int(v)
+	*i.target = &vInt
+	return err
+}
+
+func (i *intValue) Type() string {
+	return "int"
+}
+
+func (i *intValue) String() string {
+	if *i.target == nil {
+		return "<none>"
+	}
+	return strconv.Itoa(int(**i.target))
 }

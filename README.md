@@ -67,7 +67,7 @@ Available Commands:
   NetworkParameters   get NetworkParameters
   Settings            get Settings
   SharedWallet        delete or get SharedWallet objects
-  StakePool           list StakePool
+  StakePools          list StakePools
   Transaction         delete, get, or list Transaction objects
   UTxOsStatistics     get UTxOsStatistics
   Wallet              delete, get, or list Wallet objects

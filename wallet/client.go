@@ -24,6 +24,8 @@ var (
 	EnvVarWalletServerAddress = "GODANO_WALLET_CLIENT_SERVER_ADDRESS"
 )
 
+const connTimeout = 5 * time.Minute // High timeout for some long-running requests
+
 // NewHTTPSClient returns a `Client` with the given TLS configuration.
 func NewHTTPSClient(server string, tlsConfig *tls.Config) (*Client, error) {
 	return NewClient(server, WithHTTPSClient(tlsConfig))
@@ -41,13 +43,13 @@ func WithHTTPSClient(tlsConfig *tls.Config) ClientOption {
 		Transport: &http.Transport{
 			Proxy: http.ProxyFromEnvironment,
 			DialContext: (&net.Dialer{
-				Timeout:   30 * time.Second,
-				KeepAlive: 30 * time.Second,
+				Timeout:   connTimeout,
+				KeepAlive: connTimeout,
 				DualStack: true,
 			}).DialContext,
 			ForceAttemptHTTP2:     true,
 			MaxIdleConns:          100,
-			IdleConnTimeout:       90 * time.Second,
+			IdleConnTimeout:       connTimeout,
 			TLSHandshakeTimeout:   10 * time.Second,
 			ExpectContinueTimeout: 1 * time.Second,
 			TLSClientConfig:       tlsConfig,

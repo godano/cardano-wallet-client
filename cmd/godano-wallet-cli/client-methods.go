@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/godano/cardano-wallet-client/wallet"
+	"github.com/sirupsen/logrus"
 )
 
 const fixedArguments = 2 // All relevant methods have: receiver, context
@@ -28,7 +29,6 @@ var objectRemappings = map[string]string{
 	"Transactions": "Transaction",
 	"Assets":       "Asset",
 	"Wallets":      "Wallet",
-	"StakePools":   "StakePool",
 	"Addresses":    "Address",
 }
 
@@ -55,6 +55,11 @@ func (c *walletCLI) inspectClientInterface(clientObj interface{}) map[string]*cl
 		}
 		if remapping, ok := objectRemappings[cm.methodObject]; ok {
 			cm.methodObject = remapping
+		}
+
+		if wallet.MethodHasBody[method.Name] || strings.HasSuffix(method.Name, "WithBody") {
+			c.log.Debugf("Skipping method with HTTP body: %v", methodName)
+			continue
 		}
 
 		err := cm.init(method)
@@ -114,6 +119,7 @@ func (c *clientMethod) init(method reflect.Method) error {
 		if err := arg.checkSupportedArgType(argType); err != nil {
 			return err
 		}
+		arg.initStructValue()
 		c.args[i] = arg
 	}
 	return nil
@@ -130,23 +136,35 @@ func (c *clientMethod) mergeByronVariant(methods map[string]*clientMethod) {
 	}
 }
 
-func (c *clientMethod) call(receiver interface{}, ctx context.Context, useByronVariant bool) (*http.Response, error) {
+func (c *clientMethod) call(receiver interface{}, ctx context.Context, commandArgs []string, useByronVariant bool) (*http.Response, error) {
 	method := c.method
 	if useByronVariant {
 		method = *c.byronVariant
 	}
 
 	numArgs := method.Func.Type().NumIn() - 1 // Skip variadic part
-	args := make([]reflect.Value, numArgs)
-	args[0] = reflect.ValueOf(receiver) // Receiver
-	args[1] = reflect.ValueOf(ctx)      // Context
-	for j := fixedArguments; j < numArgs; j++ {
-		argVal := c.args[j-fixedArguments].getValue()
-		args[j] = reflect.ValueOf(argVal)
+	methodArgs := make([]reflect.Value, numArgs)
+	methodArgs[0] = reflect.ValueOf(receiver) // Receiver
+	methodArgs[1] = reflect.ValueOf(ctx)      // Context
+	for i, arg := range c.args {
+		// HACK This only works because an optional *struct parameter always comes last and other parameters are always strings
+		var argVal interface{}
+		if i < len(commandArgs) {
+			argVal = commandArgs[i]
+		} else {
+			argVal = arg.value
+		}
+		methodArgs[i+fixedArguments] = reflect.ValueOf(argVal)
 	}
 
-	c.log.Debugf("Calling %v with arguments: %v", method.Name, args)
-	return c.unpackResult(method.Func.Call(args))
+	if c.log.Level >= logrus.DebugLevel {
+		formattedArgs := make([]string, len(methodArgs))
+		for i, arg := range methodArgs {
+			formattedArgs[i] = fmt.Sprintf("%+v", arg)
+		}
+		c.log.Debugf("Calling %v with arguments: %v", method.Name, formattedArgs)
+	}
+	return c.unpackResult(method.Func.Call(methodArgs))
 }
 
 func (c *clientMethod) unpackResult(result []reflect.Value) (*http.Response, error) {
@@ -178,7 +196,7 @@ type clientMethodArg struct {
 	name   string
 	typ    reflect.Type
 
-	value string // Set by the user command for non-struct arguments
+	value interface{} // Only for struct args, fields filled through flags
 }
 
 func (a *clientMethodArg) String() string {
@@ -186,7 +204,6 @@ func (a *clientMethodArg) String() string {
 }
 
 func (a *clientMethodArg) checkSupportedArgType(argType reflect.Type) error {
-	// TODO properly implement struct and *struct arguments
 	if argType.Kind() == reflect.String {
 		return nil
 	}
@@ -194,22 +211,42 @@ func (a *clientMethodArg) checkSupportedArgType(argType reflect.Type) error {
 		return nil
 	}
 
+	// TODO support HTTP body parameters
+
 	return fmt.Errorf("Currently only string and pointer-to-struct args supported, cannot handle '%v' of kind %v",
 		argType.Name(), argType.Kind())
 }
 
 func (a *clientMethodArg) isStructParameter() bool {
-	return a.typ.Kind() == reflect.Ptr && a.typ.Elem().Kind() == reflect.Struct
+	if a.typ.Kind() != reflect.Ptr || a.typ.Elem().Kind() != reflect.Struct {
+		return false
+	}
+	for i := 0; i < a.numFields(); i++ {
+		structField := a.typ.Elem().Field(i)
+		if structField.Anonymous {
+			return false
+		}
+		fieldType := structField.Type
+		if fieldType.Kind() == reflect.Ptr {
+			fieldType = fieldType.Elem()
+		}
+		if !a.isSupportedFieldType(fieldType) {
+			return false
+		}
+	}
+	return true
 }
 
-func (a *clientMethodArg) getValue() interface{} {
-	if a.typ.Kind() == reflect.String {
-		return a.value
-	} else if a.isStructParameter() {
-		// This relies on the fact that there is only one non-string parameter in each method.
-		// TODO fill this struct with user-defined values
-		return wallet.MakeArgument(a.method.method.Name)
-	}
+func (a *clientMethodArg) isSupportedFieldType(typ reflect.Type) bool {
+	return typ.Kind() == reflect.Bool || typ.Kind() == reflect.String || typ.Kind() == reflect.Int
+}
 
-	return nil
+func (a *clientMethodArg) initStructValue() {
+	if a.isStructParameter() {
+		a.value = wallet.MakeArgument(a.method.method.Name)
+	}
+}
+
+func (a *clientMethodArg) numFields() int {
+	return a.typ.Elem().NumField()
 }
