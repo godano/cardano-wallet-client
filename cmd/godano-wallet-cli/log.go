@@ -18,6 +18,8 @@ func (c *walletCLI) configureEarlyLogLevel() {
 func (c *walletCLI) configureLogLevel() {
 	level := logrus.InfoLevel
 	if c.logVerbose {
+		level = logrus.TraceLevel
+	} else if c.logVerbose {
 		level = logrus.DebugLevel
 	} else if c.logVeryQuiet {
 		level = logrus.ErrorLevel

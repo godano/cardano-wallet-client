@@ -1,73 +1,78 @@
 package wallet
 
+const (
+	ParamsArgName = "params"
+	BodyArgName   = "body"
+)
+
 // ArgumentNames maps method names from the `ClientInterface` to their parameter names.
 // The receiver and the first parameter (ctx) are excluded.
 //
 // TODO this could and should be auto-generated from swagger.yaml or based on the source code of
 // ClientInterface. The problem is that Go drops parameter names during compilation.
 var ArgumentNames = map[string][]string{
-	"PostAnyAddress":                {"body"},
+	"PostAnyAddress":                {BodyArgName},
 	"InspectAddress":                {"addressId"},
 	"ListByronWallets":              {},
-	"PostByronWallet":               {"body"},
+	"PostByronWallet":               {BodyArgName},
 	"DeleteByronWallet":             {"walletId"},
 	"GetByronWallet":                {"walletId"},
-	"PutByronWallet":                {"walletId", "body"},
-	"ListByronAddresses":            {"walletId", "params"},
-	"CreateAddress":                 {"walletId", "body"},
-	"ImportAddresses":               {"walletId", "body"},
+	"PutByronWallet":                {"walletId", BodyArgName},
+	"ListByronAddresses":            {"walletId", ParamsArgName},
+	"CreateAddress":                 {"walletId", BodyArgName},
+	"ImportAddresses":               {"walletId", BodyArgName},
 	"ImportAddress":                 {"walletId", "addressId"},
 	"ListByronAssets":               {"walletId"},
 	"GetByronAssetDefault":          {"walletId", "policyId"},
 	"GetByronAsset":                 {"walletId", "policyId", "assetName"},
-	"ByronSelectCoins":              {"walletId", "body"},
+	"ByronSelectCoins":              {"walletId", BodyArgName},
 	"GetByronWalletMigrationInfo":   {"walletId"},
-	"MigrateByronWallet":            {"walletId", "body"},
-	"PutByronWalletPassphrase":      {"walletId", "body"},
-	"PostByronTransactionFee":       {"walletId", "body"},
+	"MigrateByronWallet":            {"walletId", BodyArgName},
+	"PutByronWalletPassphrase":      {"walletId", BodyArgName},
+	"PostByronTransactionFee":       {"walletId", BodyArgName},
 	"GetByronUTxOsStatistics":       {"walletId"},
-	"ListByronTransactions":         {"walletId", "params"},
-	"PostByronTransaction":          {"walletId", "body"},
+	"ListByronTransactions":         {"walletId", ParamsArgName},
+	"PostByronTransaction":          {"walletId", BodyArgName},
 	"DeleteByronTransaction":        {"walletId", "transactionId"},
 	"GetByronTransaction":           {"walletId", "transactionId"},
-	"GetNetworkClock":               {"params"},
+	"GetNetworkClock":               {ParamsArgName},
 	"GetNetworkInformation":         {},
 	"GetNetworkParameters":          {},
-	"PostExternalTransaction":       {"body"},
+	"PostExternalTransaction":       {BodyArgName},
 	"GetSettings":                   {},
-	"PutSettings":                   {"body"},
-	"PostSharedWallet":              {"body"},
+	"PutSettings":                   {BodyArgName},
+	"PostSharedWallet":              {BodyArgName},
 	"DeleteSharedWallet":            {"walletId"},
 	"GetSharedWallet":               {"walletId"},
-	"PatchSharedWalletInDelegation": {"walletId", "body"},
-	"PatchSharedWalletInPayment":    {"walletId", "body"},
-	"GetCurrentSmashHealth":         {"params"},
-	"ListStakePools":                {"params"},
-	"QuitStakePool":                 {"walletId", "body"},
+	"PatchSharedWalletInDelegation": {"walletId", BodyArgName},
+	"PatchSharedWalletInPayment":    {"walletId", BodyArgName},
+	"GetCurrentSmashHealth":         {ParamsArgName},
+	"ListStakePools":                {ParamsArgName},
+	"QuitStakePool":                 {"walletId", BodyArgName},
 	"GetMaintenanceActions":         {},
-	"PostMaintenanceAction":         {"body"},
-	"JoinStakePool":                 {"stakePoolId", "walletId", "body"},
+	"PostMaintenanceAction":         {BodyArgName},
+	"JoinStakePool":                 {"stakePoolId", "walletId", BodyArgName},
 	"ListWallets":                   {},
-	"PostWallet":                    {"body"},
+	"PostWallet":                    {BodyArgName},
 	"DeleteWallet":                  {"walletId"},
 	"GetWallet":                     {"walletId"},
-	"PutWallet":                     {"walletId", "body"},
-	"ListAddresses":                 {"walletId", "params"},
+	"PutWallet":                     {"walletId", BodyArgName},
+	"ListAddresses":                 {"walletId", ParamsArgName},
 	"ListAssets":                    {"walletId"},
 	"GetAssetDefault":               {"walletId", "policyId"},
 	"GetAsset":                      {"walletId", "policyId", "assetName"},
-	"SelectCoins":                   {"walletId", "body"},
+	"SelectCoins":                   {"walletId", BodyArgName},
 	"GetDelegationFee":              {"walletId"},
-	"PostAccountKey":                {"walletId", "index", "body"},
+	"PostAccountKey":                {"walletId", "index", BodyArgName},
 	"GetWalletKey":                  {"walletId", "role", "index"},
 	"GetShelleyWalletMigrationInfo": {"walletId"},
-	"MigrateShelleyWallet":          {"walletId", "body"},
-	"PutWalletPassphrase":           {"walletId", "body"},
-	"PostTransactionFee":            {"walletId", "body"},
-	"SignMetadata":                  {"walletId", "role", "index", "body"},
+	"MigrateShelleyWallet":          {"walletId", BodyArgName},
+	"PutWalletPassphrase":           {"walletId", BodyArgName},
+	"PostTransactionFee":            {"walletId", BodyArgName},
+	"SignMetadata":                  {"walletId", "role", "index", BodyArgName},
 	"GetUTxOsStatistics":            {"walletId"},
-	"ListTransactions":              {"walletId", "params"},
-	"PostTransaction":               {"walletId", "body"},
+	"ListTransactions":              {"walletId", ParamsArgName},
+	"PostTransaction":               {"walletId", BodyArgName},
 	"DeleteTransaction":             {"walletId", "transactionId"},
 	"GetTransaction":                {"walletId", "transactionId"},
 }
@@ -115,7 +120,7 @@ func init() {
 		src := ArgumentNames[name]
 		params := make([]string, 0, len(src))
 		params = append(params, src[:len(src)-1]...)
-		params = append(params, "contentType", "body") // These are always fixed
+		params = append(params, "contentType", BodyArgName) // These are always fixed
 		ArgumentNames[name+"WithBody"] = params
 	}
 

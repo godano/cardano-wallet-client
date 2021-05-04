@@ -7,75 +7,82 @@ package wallet
 func MakeArgument(method string) interface{} {
 	switch method {
 	case "PostAnyAddress":
-		return PostAnyAddressJSONRequestBody{}
+		return new(PostAnyAddressJSONRequestBody)
 	case "PostByronWallet":
-		return PostByronWalletJSONRequestBody(nil)
+		return PostByronWalletJSONRequestBody(nilValue())
 	case "PutByronWallet":
-		return PutByronWalletJSONRequestBody{}
+		return new(PutByronWalletJSONRequestBody)
 	case "ListByronAddresses":
 		return new(ListByronAddressesParams)
 	case "CreateAddress":
-		return CreateAddressJSONRequestBody{}
+		return new(CreateAddressJSONRequestBody)
 	case "ImportAddresses":
-		return ImportAddressesJSONRequestBody{}
+		return new(ImportAddressesJSONRequestBody)
 	case "ByronSelectCoins":
-		return ByronSelectCoinsJSONRequestBody{}
+		return new(ByronSelectCoinsJSONRequestBody)
 	case "MigrateByronWallet":
-		return MigrateByronWalletJSONRequestBody{}
+		return new(MigrateByronWalletJSONRequestBody)
 	case "PutByronWalletPassphrase":
-		return PutByronWalletPassphraseJSONRequestBody{}
+		return new(PutByronWalletPassphraseJSONRequestBody)
 	case "PostByronTransactionFee":
-		return PostByronTransactionFeeJSONRequestBody{}
+		return new(PostByronTransactionFeeJSONRequestBody)
 	case "ListByronTransactions":
 		return new(ListByronTransactionsParams)
 	case "PostByronTransaction":
-		return PostByronTransactionJSONRequestBody{}
+		return new(PostByronTransactionJSONRequestBody)
 	case "GetNetworkClock":
 		return new(GetNetworkClockParams)
 	case "PostExternalTransaction":
 		return nil // TODO no specific body struct
 	case "PutSettings":
-		return PutSettingsJSONRequestBody{}
+		return new(PutSettingsJSONRequestBody)
 	case "PostSharedWallet":
-		return PostSharedWalletJSONRequestBody(nil)
+		return PostSharedWalletJSONRequestBody(nilValue())
 	case "PatchSharedWalletInDelegation":
-		return PatchSharedWalletInDelegationJSONRequestBody{}
+		return new(PatchSharedWalletInDelegationJSONRequestBody)
 	case "PatchSharedWalletInPayment":
-		return PatchSharedWalletInPaymentJSONRequestBody{}
+		return new(PatchSharedWalletInPaymentJSONRequestBody)
 	case "GetCurrentSmashHealth":
 		return new(GetCurrentSmashHealthParams)
 	case "ListStakePools":
 		return new(ListStakePoolsParams)
 	case "QuitStakePool":
-		return QuitStakePoolJSONRequestBody{}
+		return new(QuitStakePoolJSONRequestBody)
 	case "PostMaintenanceAction":
-		return PostMaintenanceActionJSONRequestBody{}
+		return new(PostMaintenanceActionJSONRequestBody)
 	case "JoinStakePool":
-		return JoinStakePoolJSONRequestBody{}
+		return new(JoinStakePoolJSONRequestBody)
 	case "PostWallet":
-		return PostWalletJSONRequestBody(nil)
+		return PostWalletJSONRequestBody(nilValue())
 	case "PutWallet":
-		return PutWalletJSONRequestBody{}
+		return new(PutWalletJSONRequestBody)
 	case "ListAddresses":
 		return new(ListAddressesParams)
 	case "SelectCoins":
-		return SelectCoinsJSONRequestBody(nil)
+		return SelectCoinsJSONRequestBody(nilValue())
 	case "PostAccountKey":
-		return PostAccountKeyJSONRequestBody{}
+		return new(PostAccountKeyJSONRequestBody)
 	case "MigrateShelleyWallet":
-		return MigrateShelleyWalletJSONRequestBody{}
+		return new(MigrateShelleyWalletJSONRequestBody)
 	case "PutWalletPassphrase":
-		return PutWalletPassphraseJSONRequestBody{}
+		return new(PutWalletPassphraseJSONRequestBody)
 	case "PostTransactionFee":
-		return PostTransactionFeeJSONRequestBody(nil)
+		return PostTransactionFeeJSONRequestBody(nilValue())
 	case "SignMetadata":
-		return SignMetadataJSONRequestBody{}
+		return new(SignMetadataJSONRequestBody)
 	case "ListTransactions":
 		return new(ListTransactionsParams)
 	case "PostTransaction":
-		return PostTransactionJSONRequestBody(nil)
+		return PostTransactionJSONRequestBody(nilValue())
 	}
 	return nil
+}
+
+func nilValue() interface{} {
+	// Some body structs are generated as type-aliases to interface{}
+	// In these cases, use an empty map, to enable formatting and parsing with arbitrary JSON.
+	m := make(map[string]interface{})
+	return &m
 }
 
 // MethodHasParamsStruct contains the names of all methods that include a `params` struct

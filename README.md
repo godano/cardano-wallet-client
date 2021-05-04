@@ -56,30 +56,41 @@ Usage:
   godano-wallet-cli [command]
 
 Available Commands:
-  Address             import, inspect, or list Address objects
-  Asset               get or list Asset objects
-  AssetDefault        get AssetDefault
-  CurrentSmashHealth  get CurrentSmashHealth
-  DelegationFee       get DelegationFee
-  MaintenanceActions  get MaintenanceActions
-  NetworkClock        get NetworkClock
-  NetworkInformation  get NetworkInformation
-  NetworkParameters   get NetworkParameters
-  Settings            get Settings
-  SharedWallet        delete or get SharedWallet objects
-  StakePools          list StakePools
-  Transaction         delete, get, or list Transaction objects
-  UTxOsStatistics     get UTxOsStatistics
-  Wallet              delete, get, or list Wallet objects
-  WalletKey           get WalletKey
-  WalletMigrationInfo get WalletMigrationInfo
-  help                Help about any command
+  AccountKey               post AccountKey objects
+  Address                  create, import, inspect, list, or post Address objects
+  AddressBatch             import AddressBatch objects
+  Asset                    get or list Asset objects
+  AssetDefault             get AssetDefault objects
+  Byron                    Commands for Byron-era objects
+  Coins                    select Coins objects
+  CurrentSmashHealth       get CurrentSmashHealth objects
+  DelegationFee            get DelegationFee objects
+  MaintenanceAction        get or post MaintenanceAction objects
+  Metadata                 sign Metadata objects
+  NetworkClock             get NetworkClock objects
+  NetworkInformation       get NetworkInformation objects
+  NetworkParameters        get NetworkParameters objects
+  Settings                 get or put Settings objects
+  SharedWallet             delete, get, or post SharedWallet objects
+  SharedWalletInDelegation patch SharedWalletInDelegation objects
+  SharedWalletInPayment    patch SharedWalletInPayment objects
+  StakePool                join, list, or quit StakePool objects
+  Transaction              delete, get, list, or post Transaction objects
+  TransactionFee           post TransactionFee objects
+  UTxOsStatistics          get UTxOsStatistics objects
+  Wallet                   delete, get, list, migrate, post, or put Wallet objects
+  WalletKey                get WalletKey objects
+  WalletMigrationInfo      get WalletMigrationInfo objects
+  WalletPassphrase         put WalletPassphrase objects
+  help                     Help about any command
 
 Flags:
+  -n, --dry-run         Show the resulting request instead of executing it
   -h, --help            help for godano-wallet-cli
   -q, --quiet           Set the log level to Warning
   -Q, --quieter         Set the log level to Error
-  -s, --server string   Endpoint of the cardano-wallet process to connect to (default "https://127.0.0.1:34953/v2")
+  -s, --server string   Endpoint of the cardano-wallet process to connect to
+  -V, --trace           Set the log level to Trace
   -v, --verbose         Set the log level to Debug
   -y, --yaml            Output responses as YAML instead of JSON (more compact)
 

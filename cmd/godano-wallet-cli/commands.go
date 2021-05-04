@@ -1,68 +1,105 @@
 package main
 
 import (
+	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"reflect"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"unsafe"
 
+	"github.com/godano/cardano-wallet-client/wallet"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
 
-func (c *walletCLI) rootCommand() *cobra.Command {
-	rootCmd := &cobra.Command{
+var dryRunErr = errors.New("Request dry-run")
+
+func (c *walletCLI) initRootCommand() {
+	c.rootCmd = &cobra.Command{
 		Use:   "godano-wallet-cli object operation",
 		Short: "CLI for the cardano-wallet REST API",
 		Long: `godano-wallet-cli connects to the REST API of a cardano-wallet process and
 translates the CLI commands and parameters to appropriate REST API calls`,
 	}
 
-	flags := rootCmd.PersistentFlags()
+	flags := c.rootCmd.PersistentFlags()
 	flags.StringVarP(&c.serverAddress, "server", "s", c.serverAddress, "Endpoint of the cardano-wallet process to connect to")
 	flags.BoolVarP(&c.logQuiet, "quiet", "q", c.logQuiet, "Set the log level to Warning")
 	flags.BoolVarP(&c.logVeryQuiet, "quieter", "Q", c.logVeryQuiet, "Set the log level to Error")
 	flags.BoolVarP(&c.logVerbose, "verbose", "v", c.logVerbose, "Set the log level to Debug")
+	flags.BoolVarP(&c.logTrace, "trace", "V", c.logTrace, "Set the log level to Trace")
+	flags.BoolVarP(&c.dryRun, "dry-run", "n", c.dryRun, "Show the resulting request instead of executing it")
 	flags.BoolVarP(&c.outputYAML, "yaml", "y", c.outputYAML, "Output responses as YAML instead of JSON (more compact)")
-	return rootCmd
 }
 
-func (c *clientMethod) getObjectCommand(rootCmd *cobra.Command, objectVerbs map[string][]string) *cobra.Command {
-	objectCommand, ok := c.objectCommands[c.methodObject]
+func (c *walletCLI) initByronCommand() {
+	c.byronCmd = &cobra.Command{
+		Use:   "Byron",
+		Short: "Commands for Byron-era objects",
+		Long: `This sub-command bundles functionality for objects from the Byron era.
+All Byron-era commands have equivalents in the main command.`,
+		Aliases: []string{"byron"},
+	}
+	c.rootCmd.AddCommand(c.byronCmd)
+}
+
+func (c *walletCLI) objectCommand(m *methodCommand, allObjectVerbs []string) *cobra.Command {
+	objectCommands := c.objectCommands
+	parentCmd := c.rootCmd
+	if m.method.isByronMethod {
+		objectCommands = c.byronObjectCommands
+		parentCmd = c.byronCmd
+	}
+
+	objectCommand, ok := objectCommands[m.method.object]
 	if !ok {
 		// These messages cover the case that there are multiple sub-commands for this object
-		verbs := objectVerbs[c.methodObject]
-		sort.Strings(verbs)
 		var joinedVerbs string
-		if len(verbs) == 1 {
-			joinedVerbs = verbs[0]
-		} else if len(verbs) == 2 {
-			joinedVerbs = fmt.Sprintf("%v or %v", verbs[0], verbs[1])
+		if len(allObjectVerbs) == 1 {
+			joinedVerbs = allObjectVerbs[0]
+		} else if len(allObjectVerbs) == 2 {
+			joinedVerbs = fmt.Sprintf("%v or %v", allObjectVerbs[0], allObjectVerbs[1])
 		} else {
-			joinedVerbs = strings.Join(verbs[:len(verbs)-1], ", ") + ", or " + verbs[len(verbs)-1]
+			joinedVerbs = strings.Join(allObjectVerbs[:len(allObjectVerbs)-1], ", ") + ", or " + allObjectVerbs[len(allObjectVerbs)-1]
 		}
 
-		shortMessage := fmt.Sprintf("%v %v objects", joinedVerbs, c.methodObject)
+		shortMessage := fmt.Sprintf("%v %v objects", joinedVerbs, m.objectStr())
 		longMessage := shortMessage
 
 		objectCommand = &cobra.Command{
-			Use:     c.methodObject,
+			Use:     m.method.object,
 			Short:   shortMessage,
 			Long:    longMessage,
-			Aliases: []string{strings.ToLower(c.methodObject)},
+			Aliases: []string{strings.ToLower(m.method.object)},
 		}
-		rootCmd.AddCommand(objectCommand)
-		c.objectCommands[c.methodObject] = objectCommand
+		parentCmd.AddCommand(objectCommand)
+		objectCommands[m.method.object] = objectCommand
 	}
 	return objectCommand
 }
 
-func (c *clientMethod) registerCommand(rootCmd *cobra.Command, clientObj interface{}, objectVerbs map[string][]string) {
-	objectCommand := c.getObjectCommand(rootCmd, objectVerbs)
-	isOnlyCommand := len(objectVerbs[c.methodObject]) == 1
+type methodCommand struct {
+	cli    *walletCLI
+	method *clientMethod
+
+	// Only if method.hasParams or method.hasBody
+	extraArg interface{}
+
+	// Only if method.hasBody
+	bodyFile    string
+	bodyContent string
+}
+
+func (c *methodCommand) verbCommand(allObjectVerbs []string) {
+	objectCommand := c.cli.objectCommand(c, allObjectVerbs)
+	isOnlyCommand := len(allObjectVerbs) == 1
 
 	var cmd *cobra.Command
 	if isOnlyCommand {
@@ -71,50 +108,158 @@ func (c *clientMethod) registerCommand(rootCmd *cobra.Command, clientObj interfa
 		cmd = objectCommand
 	} else {
 		cmd = new(cobra.Command)
-		cmd.Use = c.methodVerb
+		cmd.Use = c.method.verb
 		c.configureCommand(cmd)
 		objectCommand.AddCommand(cmd)
 	}
 
-	cmd.Short = fmt.Sprintf("%v %v", c.methodVerb, c.methodObject)
-	cmd.Long = fmt.Sprintf("%v operation for %v objects", c.methodVerb, c.methodObject)
+	cmd.Short = fmt.Sprintf("%v %v objects", c.method.verb, c.objectStr())
+	cmd.Long = fmt.Sprintf("%v operation for %v objects", c.method.verb, c.objectStr())
 }
 
-func (c *clientMethod) configureCommand(cmd *cobra.Command) {
-	numArgs := 0
-	for _, arg := range c.args {
-		if arg.isStructParameter() {
-			arg.addCommandFlags(cmd.Flags())
-		} else {
-			numArgs++
-			cmd.Use += fmt.Sprintf(" <%v>", arg.name)
+func (c *methodCommand) objectStr() string {
+	res := c.method.object
+	if c.method.isByronMethod {
+		res = "Byron-era " + res
+	}
+	return res
+}
+
+func (c *methodCommand) configureCommand(cmd *cobra.Command) {
+	cmd.Args = cobra.ExactArgs(len(c.method.stringArgs))
+	for _, arg := range c.method.stringArgs {
+		cmd.Use += fmt.Sprintf(" <%v>", arg)
+	}
+
+	if c.method.hasParams || c.method.hasBody {
+		methodName := c.method.method.Name
+		c.extraArg = wallet.MakeArgument(methodName)
+		if c.extraArg == nil {
+			// If this happens, the wallet.MakeArgument is outdated
+			panic(fmt.Errorf("Failed to create argument for method %v", methodName))
+		}
+		if c.method.hasParams {
+			c.addParamsFlags(cmd.Flags())
+		} else if c.method.hasBody {
+			c.addBodyFlags(cmd.Flags())
 		}
 	}
-	cmd.Args = cobra.ExactArgs(numArgs)
 
-	var useByronVariant bool
 	cmd.Run = func(cmd *cobra.Command, args []string) {
-		client, err := c.connectClient()
-		c.checkErr(err)
-		res, err := c.call(client, c.ctx, args, useByronVariant)
-		c.checkErr(err)
-		if err == nil {
-			c.outputResponse(res)
+		c.callMethod(args)
+	}
+}
+
+func (c *methodCommand) callMethod(stringArgs []string) {
+	args, err := c.buildMethodArguments(stringArgs)
+	c.cli.checkErr(err)
+
+	// Log all parameters for debugging
+	if c.cli.log.Level >= logrus.DebugLevel {
+		formattedArgs := make([]string, len(args))
+		for i, arg := range args {
+			formattedArgs[i] = fmt.Sprintf("%+v", arg)
+		}
+		c.cli.log.Debugf("Calling %v with arguments: %v", c.method.method.Name, formattedArgs)
+	}
+
+	// Log the request in case of dry-run
+	if c.cli.dryRun {
+		reqEditor := func(ctx context.Context, req *http.Request) error {
+			c.cli.outputDryRunRequest(req)
+			return dryRunErr
+		}
+
+		// Add a request-editor as variadic argument to prevent the request from actually executing
+		args = append(args, reqEditor)
+	}
+
+	// Actually run the request method now
+	res, err := c.method.call(args)
+	if c.cli.dryRun && err == dryRunErr {
+		return
+	}
+	c.cli.checkErr(err)
+	c.cli.outputResponse(res)
+}
+
+func (c *methodCommand) buildMethodArguments(stringArgs []string) ([]interface{}, error) {
+	// Load the optional body first, before connecting to the server
+	if c.method.hasBody {
+		if err := c.loadBody(); err != nil {
+			return nil, err
 		}
 	}
 
-	if c.byronVariant != nil {
-		cmd.Use += " [--byron]"
-		cmd.Flags().BoolVar(&useByronVariant, "byron", false, "Use the Byron variant of this command")
+	// Connect
+	client, err := c.cli.connectClient()
+	if err != nil {
+		return nil, err
 	}
+
+	// First to arguments: receiver and context
+	args := []interface{}{client, c.cli.ctx}
+
+	// Afterwards come the string arguments
+	for _, stringArg := range stringArgs {
+		args = append(args, stringArg)
+	}
+
+	// Finally, an optional extra non-string argument (params or body)
+	if c.method.hasParams || c.method.hasBody {
+		extraArg := c.extraArg
+		if c.method.extraArgumentType.Kind() != reflect.Ptr {
+			// Need to get an interface{} for the struct, instead of the pointer
+			// The struct type, that c.extraArg points to, is correct, therefore resolve the pointer
+			extraArg = reflect.ValueOf(extraArg).Elem().Interface()
+		}
+		args = append(args, extraArg)
+	}
+
+	return args, nil
+}
+
+func (c *methodCommand) addBodyFlags(flags *pflag.FlagSet) {
+	flags.StringVarP(&c.bodyContent, "body", "b", "", "Specify JSON-encoded content to send as request body")
+	flags.StringVarP(&c.bodyFile, "body-file", "B", "", "Specify a JSON file to send as request body")
+}
+
+func (c *methodCommand) loadBody() error {
+	if c.bodyFile != "" && c.bodyContent != "" {
+		return fmt.Errorf("Cannot specify both --body/-b and --body-file/-B")
+	}
+
+	// Read the provided data into a buffer
+	var bodyBytes []byte
+	if c.bodyContent != "" {
+		bodyBytes = []byte(c.bodyContent)
+	} else if c.bodyFile != "" {
+		var err error
+		bodyBytes, err = ioutil.ReadFile(c.bodyFile)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Parse the buffer into the body object (already initialized).
+	// This requires that wallet.MakeArgument() always returns pointers.
+	// If necessary, the c.extraArg pointer is resolved in buildMethodArguments().
+	if len(bodyBytes) > 0 {
+		err := json.Unmarshal(bodyBytes, c.extraArg)
+		if err != nil {
+			return fmt.Errorf("Failed to parse body into type %T: %v", c.extraArg, err)
+		}
+	}
+	return nil
 }
 
 var whitespaceRegex = regexp.MustCompile("\\s*")
 
-func (a *clientMethodArg) addCommandFlags(flags *pflag.FlagSet) {
-	val := reflect.ValueOf(a.value)
-	for i := 0; i < a.numFields(); i++ {
-		structField := a.typ.Elem().Field(i)
+func (c *methodCommand) addParamsFlags(flags *pflag.FlagSet) {
+	val := reflect.ValueOf(c.extraArg)
+	argType := c.method.extraArgumentType.Elem()
+	for i := 0; i < argType.NumField(); i++ {
+		structField := argType.Field(i)
 		fieldType := structField.Type
 		fieldName := structField.Name
 		flagName := strings.ToLower(whitespaceRegex.ReplaceAllString(fieldName, ""))
@@ -153,7 +298,7 @@ func (a *clientMethodArg) addCommandFlags(flags *pflag.FlagSet) {
 
 // The types below are copied and modified from github.com/spf13/pflag and are necessary to avoid setting
 // default values (such as empty strings) when the user does not specify the respective flag.
-// The double-pointer
+// This makes the double-pointer necessary.
 
 type stringValue struct {
 	target **string
