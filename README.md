@@ -12,12 +12,12 @@ A Go client for the [cardano-wallet](https://github.com/input-output-hk/cardano-
 The bulk of this client code is generated using [oapi-codegen](https://github.com/deepmap/oapi-codegen), based on the [Open API definition](https://input-output-hk.github.io/cardano-wallet/api/edge/swagger.yaml) of `cardano-wallet`, which is documented [here](https://input-output-hk.github.io/cardano-wallet/api/edge/).
 
 The [wallet package](wallet/) contains the generated client library, along with a few convenience functions and tests.
-[The cmd/godano-wallet-cli package](cmd/godano-wallet-cli/) is thin CLI wrapper for the client library.
+[The cmd/godano-wallet-cli package](cmd/godano-wallet-cli/) is a thin CLI wrapper for the client library.
 
 # Using the client library
 
-A client can be conveniently created using any of the `New[HTTPS]Client[WithResponses]` methods.
-See the `Client` or `ClientWithResponses` interfaces for a full list of supported operations, which mirror the [cardano-wallet REST API](https://input-output-hk.github.io/cardano-wallet/api/edge/).
+A client can be conveniently created using any of the `wallet.New[HTTPS]Client[WithResponses]` methods.
+See the `wallet.Client` or `wallet.ClientWithResponses` interfaces for a full list of supported operations, which mirror the [cardano-wallet REST API](https://input-output-hk.github.io/cardano-wallet/api/edge/).
 
 ```
 addr := "https://localhost:12345/v2"
@@ -30,7 +30,7 @@ pools, err := client.ListStakePoolsWithResponse(ctx, &ListStakePoolsParams {
 ```
 
 The following environment variables control the connection to the `cardano-wallet` server.
-The `wallet.MakeTLSConfig()` method creates a TLS configuration for communication with the `cardano-wallet` process started by the Daedalus wallet.
+The `wallet.MakeTLSConfig()` method creates a TLS configuration, which is suitable the `cardano-wallet` process started by the Daedalus wallet.
 Other instances of `cardano-wallet` might require different parameters.
 Using `wallet.MakeTLSConfig()`, or HTTPS for that matter, is optional.
 `wallet.MakeTLSConfig()` uses the following environment variables:
@@ -110,9 +110,9 @@ The `generate.sh` script updates the generated code:
 ```
 
 The script uses `oapi-codegen`, `goimports`, and `gofumpt`, as well as `mkdir`, `wget`, and `sed`. See the comments in the script on how to install these requirements.
-The script updates `swagger.yaml` and files named `wallet/generated-*.go`. If for example the package name is changed to something different than `wallet`, the other files in [the wallet package](wallet) must be updated manually.
+The script updates [`swagger.yaml`](swagger.yaml) and files named `wallet/generated-*.go`. If for example the package name is changed to something different than `wallet`, the other files in [the wallet package](wallet) must be updated manually.
 
-Due to a (presumed) bug in `oapi-codegen`, the generated code is patched using `sed` after generation. Two missing structs (`Metadata` and `Distributions`) are implemented in `wallet/types-*.go`. Both these structs use integers as keys in JSON response objects, which is a rare use case and could be the reason for the errorenous code generation.
+Due to a (presumed) bug in `oapi-codegen`, the generated code is patched using `sed` after generation. Two missing structs ([`Metadata`](wallet/types-metadata.go) and [`Distributions`](wallet/types-distribution.go)) are implemented in `wallet/types-*.go`. Both these structs use integers as keys in JSON response objects, which is a rare use case and could be the reason for the errorenous code generation.
 
 # Testing
 
